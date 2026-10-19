@@ -1,0 +1,264 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Dasbor Cable Drop</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: lembar survei jaringan. Strip upload di atas, ringkasan angka, dua grafik (per FAT, sebaran panjang), lalu tabel kabel yang bisa dicari. */
+:root{
+  --bg:#eef1f3; --surface:#ffffff; --surface2:#f5f7f8; --ink:#14232b; --muted:#5b6b74;
+  --line:#d5dde1; --accent:#c2410c; --accent-soft:#fbe3d6; --teal:#0f6b6f; --teal-soft:#d3ebeb;
+  --warn:#a16207; --warn-soft:#fdf0c9; --ok:#17693a;
+  --font-display:'IBM Plex Sans Condensed','Arial Narrow',Arial,sans-serif;
+  --font-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f181d; --surface:#17232a; --surface2:#1d2c34; --ink:#e6edf0; --muted:#97a8b1;
+    --line:#2b3c45; --accent:#f08a4b; --accent-soft:#3a2418; --teal:#4fc1c5; --teal-soft:#16373a;
+    --warn:#e7b94a; --warn-soft:#3a3016; --ok:#5fcf8a; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f181d; --surface:#17232a; --surface2:#1d2c34; --ink:#e6edf0; --muted:#97a8b1;
+  --line:#2b3c45; --accent:#f08a4b; --accent-soft:#3a2418; --teal:#4fc1c5; --teal-soft:#16373a;
+  --warn:#e7b94a; --warn-soft:#3a3016; --ok:#5fcf8a; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.5;
+  padding-inline:0;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-block:24px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--font-display);font-weight:700;font-size:26px;line-height:1.1;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;font-family:var(--font-mono);font-size:12px;overflow-wrap:anywhere}
+h2{font-family:var(--font-display);font-weight:600;font-size:16px;margin:0 0 12px;letter-spacing:.01em}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
+
+/* upload */
+.drop{display:flex;flex-wrap:wrap;align-items:center;gap:14px;border:1.5px dashed var(--muted);border-radius:6px;
+  padding:16px;background:var(--surface);transition:background .15s,border-color .15s}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop .txt{flex:1 1 260px;min-width:0}
+.drop strong{font-family:var(--font-display);font-size:17px;font-weight:600}
+.drop p{margin:2px 0 0;color:var(--muted)}
+button,.btn{font:inherit;font-weight:500;border-radius:5px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);
+  padding:8px 14px;cursor:pointer}
+button.ghost,.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#status{font-family:var(--font-mono);font-size:12.5px;min-height:18px;color:var(--muted)}
+#status.err{color:var(--accent)} #status.ok{color:var(--ok)}
+
+/* table */
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+input[type=search],input[type=number],select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);
+  border-radius:5px;padding:7px 9px;min-width:0}
+input[type=search]{width:220px;max-width:100%} input[type=number]{width:90px}
+.spacer{flex:1 1 auto}
+.tablebox{overflow:auto;max-height:560px;border:1px solid var(--line);border-radius:5px}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:var(--surface2);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);cursor:pointer;user-select:none}
+th[aria-sort]{color:var(--ink)}
+th .ar{color:var(--accent)}
+td.num,th.num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+td.mono{font-family:var(--font-mono);font-size:12.5px}
+.count{color:var(--muted);font-size:12.5px}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Panjang Cable Drop</h1>
+      <p class="sub" id="src">File: ABD-RB32DPK1128_001.kmz</p>
+    </div>
+    
+  </header>
+
+  <section class="drop" id="drop" aria-label="Unggah file KMZ">
+    <div class="txt">
+      <strong>Masukkan file KMZ atau KML</strong>
+      <p>Tarik file ke sini atau pilih dari perangkat. Dibaca langsung di browser.</p>
+      <div id="status" role="status">Menampilkan data dari file yang sudah dimuat.</div>
+    </div>
+    <input id="file" type="file" accept=".kmz,.kml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml" hidden>
+    <label for="file" class="btn" id="pick" tabindex="0" role="button">Pilih file</label>
+  </section>
+
+  <section>
+        <div class="tools">
+      <div class="field"><label for="q">Cari</label><input id="q" type="search" placeholder="Nomor rumah, FAT, jalan"></div>
+      <div class="field"><label for="fatSel">FAT</label><select id="fatSel"><option value="">Semua FAT</option></select></div>
+      <span class="spacer"></span>
+      <span class="count" id="cnt"></span>
+      <button type="button" id="csvBtn">Simpan CSV</button>
+    </div>
+    <div class="tablebox"><table>
+      <thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody>
+    </table></div>
+    <p class="note" id="csvNote"></p>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const INITIAL = [{"cable":"cable_E1-12_FOB041S02A07","house":"E1-12","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":85.67},{"cable":"cable_E1-13_FOB041S02A07","house":"E1-13","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":83.23},{"cable":"cable_E1-14_FOB041S02A07","house":"E1-14","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":82.04},{"cable":"cable_E1-15_FOB041S02A07","house":"E1-15","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":82.26},{"cable":"cable_E1-16_FOB041S02A07","house":"E1-16","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":83.67},{"cable":"cable_E1-17_FOB041S02A07","house":"E1-17","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":86.05},{"cable":"cable_E1-18_FOB041S02A07","house":"E1-18","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":90.27},{"cable":"cable_E1-19_FOB041S02A07","house":"E1-19","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":94.97},{"cable":"cable_E1-20_FOB041S02A07","house":"E1-20","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":100.63},{"cable":"cable_E11-4C_FOB041S02A07","house":"E11-4C","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":86.46},{"cable":"cable_E11-5_FOB041S02A07","house":"E11-5","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":80.32},{"cable":"cable_E11-6_FOB041S02A07","house":"E11-6","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":74.45},{"cable":"cable_E11-7_FOB041S02A07","house":"E11-7","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":69.3},{"cable":"cable_E2-17_FOB041S02A07","house":"E2-17","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":48.99},{"cable":"cable_E2-18_FOB041S02A07","house":"E2-18","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":59.46},{"cable":"cable_E4-1_FOB041S02A07","house":"E4-1","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":83.12},{"cable":"cable_E4-2_FOB041S02A07","house":"E4-2","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":76.51},{"cable":"cable_E4-3_FOB041S02A07","house":"E4-3","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":70.91},{"cable":"cable_E4-4_FOB041S02A07","house":"E4-4","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":66.61},{"cable":"cable_E4-5_FOB041S02A07","house":"E4-5","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":62.8},{"cable":"cable_E4-6_FOB041S02A07","house":"E4-6","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":61.1},{"cable":"cable_E4-7_FOB041S02A07","house":"E4-7","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":60.72},{"cable":"cable_E4-8_FOB041S02A07","house":"E4-8","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":61.88},{"cable":"cable_E4-9_FOB041S02A07","house":"E4-9","fat":"FOB041S02A07","street":"JL. KEMUNING 5","len":65.38},{"cable":"cable_E1-21_FOB041S01A05","house":"E1-21","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":26.58},{"cable":"cable_E1-22_FOB041S01A05","house":"E1-22","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":22.02},{"cable":"cable_E4-18_FOB041S01A05","house":"E4-18","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":48.81},{"cable":"cable_E5-1_FOB041S01A05","house":"E5-1","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":48.98},{"cable":"cable_E5-2_FOB041S01A05","house":"E5-2","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":58.78},{"cable":"cable_E8-10_FOB041S01A05","house":"E8-10","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":110.59},{"cable":"cable_E8-11_FOB041S01A05","house":"E8-11","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":121.66},{"cable":"cable_E8-16_FOB041S01A05","house":"E8-16","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":72.54},{"cable":"cable_E8-17_FOB041S01A05","house":"E8-17","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":62.94},{"cable":"cable_E8-18_FOB041S01A05","house":"E8-18","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":54.19},{"cable":"cable_E8-19_FOB041S01A05","house":"E8-19","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":45.31},{"cable":"cable_E8-1_FOB041S01A05","house":"E8-1","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":24.27},{"cable":"cable_E8-20_FOB041S01A05","house":"E8-20","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":36.61},{"cable":"cable_E8-21_FOB041S01A05","house":"E8-21","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":28.54},{"cable":"cable_E8-2_FOB041S01A05","house":"E8-2","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":33.45},{"cable":"cable_E8-3_FOB041S01A05","house":"E8-3","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":42.28},{"cable":"cable_E8-4_FOB041S01A05","house":"E8-4","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":51.62},{"cable":"cable_E8-5_FOB041S01A05","house":"E8-5","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":61.33},{"cable":"cable_E8-6_FOB041S01A05","house":"E8-6","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":70.2},{"cable":"cable_E8-7_FOB041S01A05","house":"E8-7","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":80.22},{"cable":"cable_E8-8_FOB041S01A05","house":"E8-8","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":90.41},{"cable":"cable_E8-9_FOB041S01A05","house":"E8-9","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":99.99},{"cable":"cable_F4-8_FOB041S01A05","house":"F4-8","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":180.19},{"cable":"cable_F4-9_FOB041S01A05","house":"F4-9","fat":"FOB041S01A05","street":"JL. TAMAN DUTA TIMUR","len":172.46},{"cable":"cable_E1-10_FOB041S01A06","house":"E1-10","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":99.6},{"cable":"cable_E1-11_FOB041S01A06","house":"E1-11","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":110.85},{"cable":"cable_E1-1_FOB041S01A06","house":"E1-1","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":18.2},{"cable":"cable_E1-2_FOB041S01A06","house":"E1-2","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":23.92},{"cable":"cable_E1-3_FOB041S01A06","house":"E1-3","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":31.85},{"cable":"cable_E1-4_FOB041S01A06","house":"E1-4","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":41.2},{"cable":"cable_E1-5_FOB041S01A06","house":"E1-5","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":50.72},{"cable":"cable_E1-6_FOB041S01A06","house":"E1-6","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":59.67},{"cable":"cable_E1-7_FOB041S01A06","house":"E1-7","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":69.9},{"cable":"cable_E1-8_FOB041S01A06","house":"E1-8","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":80.09},{"cable":"cable_E1-9_FOB041S01A06","house":"E1-9","fat":"FOB041S01A06","street":"JL. TAMAN DUTA TIMUR","len":90.17},{"cable":"cable_E5-13_FOB041S01A03","house":"E5-13","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":30.19},{"cable":"cable_E5-14_FOB041S01A03","house":"E5-14","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":39.33},{"cable":"cable_E5-15_FOB041S01A03","house":"E5-15","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":48.55},{"cable":"cable_E5-16_FOB041S01A03","house":"E5-16","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":58.16},{"cable":"cable_E5-17_FOB041S01A03","house":"E5-17","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":67.7},{"cable":"cable_E5-18_FOB041S01A03","house":"E5-18","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":77.77},{"cable":"cable_E6-10_FOB041S01A03","house":"E6-10","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":26.77},{"cable":"cable_E6-11_FOB041S01A03","house":"E6-11","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":27.8},{"cable":"cable_E6-12_FOB041S01A03","house":"E6-12","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":31.94},{"cable":"cable_E6-13_FOB041S01A03","house":"E6-13","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":38.51},{"cable":"cable_E6-14_FOB041S01A03","house":"E6-14","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":45.66},{"cable":"cable_E6-15_FOB041S01A03","house":"E6-15","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":54.3},{"cable":"cable_E6-16_FOB041S01A03","house":"E6-16","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":62.87},{"cable":"cable_E6-17_FOB041S01A03","house":"E6-17","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":71.57},{"cable":"cable_E6-18_FOB041S01A03","house":"E6-18","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":82.0},{"cable":"cable_E6-1_FOB041S01A03","house":"E6-1","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":79.62},{"cable":"cable_E6-2_FOB041S01A03","house":"E6-2","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":69.92},{"cable":"cable_E6-3_FOB041S01A03","house":"E6-3","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":60.55},{"cable":"cable_E6-4_FOB041S01A03","house":"E6-4","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":51.11},{"cable":"cable_E6-5_FOB041S01A03","house":"E6-5","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":42.98},{"cable":"cable_E6-6_FOB041S01A03","house":"E6-6","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":34.8},{"cable":"cable_E6-7_FOB041S01A03","house":"E6-7","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":28.17},{"cable":"cable_E6-8_FOB041S01A03","house":"E6-8","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":23.1},{"cable":"cable_E6-9_FOB041S01A03","house":"E6-9","fat":"FOB041S01A03","street":"JL. KEMUNING 5","len":22.12},{"cable":"cable_E11-1_FOB041S01A04","house":"E11-1","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":36.61},{"cable":"cable_E11-2_FOB041S01A04","house":"E11-2","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":37.83},{"cable":"cable_E11-3_FOB041S01A04","house":"E11-3","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":40.9},{"cable":"cable_E11-4A_FOB041S01A04","house":"E11-4A","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":50.37},{"cable":"cable_E11-4B_FOB041S01A04","house":"E11-4B","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":56.79},{"cable":"cable_E11-4_FOB041S01A04","house":"E11-4","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":45.49},{"cable":"cable_E4-10_FOB041S01A04","house":"E4-10","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":52.73},{"cable":"cable_E4-11_FOB041S01A04","house":"E4-11","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":52.75},{"cable":"cable_E4-12_FOB041S01A04","house":"E4-12","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":54.97},{"cable":"cable_E4-13_FOB041S01A04","house":"E4-13","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":58.86},{"cable":"cable_E4-14_FOB041S01A04","house":"E4-14","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":64.15},{"cable":"cable_E4-15_FOB041S01A04","house":"E4-15","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":70.4},{"cable":"cable_E4-16_FOB041S01A04","house":"E4-16","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":77.28},{"cable":"cable_E4-17_FOB041S01A04","house":"E4-17","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":84.74},{"cable":"cable_E5-10_FOB041S01A04","house":"E5-10","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":13.03},{"cable":"cable_E5-11_FOB041S01A04","house":"E5-11","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":14.71},{"cable":"cable_E5-12_FOB041S01A04","house":"E5-12","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":21.75},{"cable":"cable_E5-3_FOB041S01A04","house":"E5-3","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":58.98},{"cable":"cable_E5-4_FOB041S01A04","house":"E5-4","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":49.62},{"cable":"cable_E5-5_FOB041S01A04","house":"E5-5","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":40.56},{"cable":"cable_E5-6_FOB041S01A04","house":"E5-6","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":32.12},{"cable":"cable_E5-7_FOB041S01A04","house":"E5-7","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":24.47},{"cable":"cable_E5-8_FOB041S01A04","house":"E5-8","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":18.75},{"cable":"cable_E5-9_FOB041S01A04","house":"E5-9","fat":"FOB041S01A04","street":"JL. KEMUNING 5","len":17.72},{"cable":"cable_1A_FOB041S01A01","house":"1A","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":43.08},{"cable":"cable_E10-11_FOB041S01A01","house":"E10-11","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":76.26},{"cable":"cable_E10-2_FOB041S01A01","house":"E10-2","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":95.92},{"cable":"cable_E10-3_FOB041S01A01","house":"E10-3","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":91.59},{"cable":"cable_E10-4_FOB041S01A01","house":"E10-4","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":87.83},{"cable":"cable_E10-5_FOB041S01A01","house":"E10-5","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":84.24},{"cable":"cable_E10-6_FOB041S01A01","house":"E10-6","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":81.46},{"cable":"cable_E10-7_FOB041S01A01","house":"E10-7","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":79.28},{"cable":"cable_E10-8_FOB041S01A01","house":"E10-8","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":77.54},{"cable":"cable_E9-10_FOB041S01A01","house":"E9-10","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":52.53},{"cable":"cable_E9-11_FOB041S01A01","house":"E9-11","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":60.83},{"cable":"cable_E9-12_FOB041S01A01","house":"E9-12","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":69.84},{"cable":"cable_E9-13_FOB041S01A01","house":"E9-13","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":81.34},{"cable":"cable_E9-1_FOB041S01A01","house":"E9-1","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":49.04},{"cable":"cable_E9-2_FOB041S01A01","house":"E9-2","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":35.55},{"cable":"cable_E9-3_FOB041S01A01","house":"E9-3","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":29.65},{"cable":"cable_E9-4_FOB041S01A01","house":"E9-4","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":24.67},{"cable":"cable_E9-5_FOB041S01A01","house":"E9-5","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":20.39},{"cable":"cable_E9-6_FOB041S01A01","house":"E9-6","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":18.03},{"cable":"cable_E9-7_FOB041S01A01","house":"E9-7","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":23.49},{"cable":"cable_E9-8_FOB041S01A01","house":"E9-8","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":34.18},{"cable":"cable_E9-9_FOB041S01A01","house":"E9-9","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":43.52},{"cable":"cable_F4-10_FOB041S01A01","house":"F4-10","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":108.52},{"cable":"cable_F4-11_FOB041S01A01","house":"F4-11","fat":"FOB041S01A01","street":"JL. KEMUNING 7","len":98.3},{"cable":"cable_?-5_FOB041S01A02","house":"?-5","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":48.91},{"cable":"cable_E10-1_FOB041S01A02","house":"E10-1","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":101.28},{"cable":"cable_E11-11_FOB041S01A02","house":"E11-11","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":40.45},{"cable":"cable_E11-12_FOB041S01A02","house":"E11-12","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":33.2},{"cable":"cable_E11-13_FOB041S01A02","house":"E11-13","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":26.12},{"cable":"cable_E11-14_FOB041S01A02","house":"E11-14","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":19.05},{"cable":"cable_E11-15_FOB041S01A02","house":"E11-15","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":11.15},{"cable":"cable_E11-16_FOB041S01A02","house":"E11-16","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":13.16},{"cable":"cable_E11-17_FOB041S01A02","house":"E11-17","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":18.54},{"cable":"cable_E11-18_FOB041S01A02","house":"E11-18","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":25.47},{"cable":"cable_E11-19_FOB041S01A02","house":"E11-19","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":32.82},{"cable":"cable_E11-1_FOB041S01A02","house":"E11-1","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":33.21},{"cable":"cable_E11-2_FOB041S01A02","house":"E11-2","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":24.15},{"cable":"cable_E11-3_FOB041S01A02","house":"E11-3","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":17.59},{"cable":"cable_E11-4_FOB041S01A02","house":"E11-4","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":15.64},{"cable":"cable_E11-5_FOB041S01A02","house":"E11-5","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":19.4},{"cable":"cable_E11-6_FOB041S01A02","house":"E11-6","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":26.04},{"cable":"cable_E11-7_FOB041S01A02","house":"E11-7","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":34.6},{"cable":"cable_E11-8_FOB041S01A02","house":"E11-8","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":43.08},{"cable":"cable_E11-9_FOB041S01A02","house":"E11-9","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":51.78},{"cable":"cable_E8-12_FOB041S01A02","house":"E8-12","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":53.0},{"cable":"cable_E8-13_FOB041S01A02","house":"E8-13","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":53.7},{"cable":"cable_E8-14_FOB041S01A02","house":"E8-14","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":56.02},{"cable":"cable_E8-15_FOB041S01A02","house":"E8-15","fat":"FOB041S01A02","street":"JL. KEMUNING 7","len":59.87},{"cable":"cable_29_FOB041S02A10","house":"29","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":102.01},{"cable":"cable_36_FOB041S02A10","house":"36","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":80.49},{"cable":"cable_?-10_FOB041S02A10","house":"?-10","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":67.41},{"cable":"cable_?-11_FOB041S02A10","house":"?-11","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":73.02},{"cable":"cable_?-13_FOB041S02A10","house":"?-13","fat":"FOB041S02A10","street":"JL. KEMUNING 1","len":89.07},{"cable":"cable_?-1_FOB041S02A10","house":"?-1","fat":"FOB041S02A10","street":"JL. KEMUNING 1","len":100.95},{"cable":"cable_?-2_FOB041S02A10","house":"?-2","fat":"FOB041S02A10","street":"JL. KEMUNING 1","len":102.26},{"cable":"cable_?-3_FOB041S02A10","house":"?-3","fat":"FOB041S02A10","street":"JL. KEMUNING 1","len":92.44},{"cable":"cable_?-6_FOB041S02A10","house":"?-6","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":23.03},{"cable":"cable_?-7_FOB041S02A10","house":"?-7","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":48.7},{"cable":"cable_?-8_FOB041S02A10","house":"?-8","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":61.66},{"cable":"cable_C4-10_FOB041S02A10","house":"C4-10","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":66.8},{"cable":"cable_C4-11_FOB041S02A10","house":"C4-11","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":58.25},{"cable":"cable_C4-12_FOB041S02A10","house":"C4-12","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":43.67},{"cable":"cable_C4-13_FOB041S02A10","house":"C4-13","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":33.95},{"cable":"cable_C4-15_FOB041S02A10","house":"C4-15","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":20.91},{"cable":"cable_C4-9A_FOB041S02A10","house":"C4-9A","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":75.6},{"cable":"cable_C4-9B_FOB041S02A10","house":"C4-9B","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":84.31},{"cable":"cable_E2-1_FOB041S02A10","house":"E2-1","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":58.94},{"cable":"cable_E2-2_FOB041S02A10","house":"E2-2","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":48.76},{"cable":"cable_E2-3_FOB041S02A10","house":"E2-3","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":40.22},{"cable":"cable_E2-4_FOB041S02A10","house":"E2-4","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":30.9},{"cable":"cable_E2-5_FOB041S02A10","house":"E2-5","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":22.8},{"cable":"cable_E2-6_FOB041S02A10","house":"E2-6","fat":"FOB041S02A10","street":"JL. KEMUNING 2","len":16.91},{"cable":"cable_?-12_FOB041S02A09","house":"?-12","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":98.55},{"cable":"cable_?-9_FOB041S02A09","house":"?-9","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":90.72},{"cable":"cable_E11-10_FOB041S02A09","house":"E11-10","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":75.8},{"cable":"cable_E11-11_FOB041S02A09","house":"E11-11","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":80.48},{"cable":"cable_E11-60_FOB041S02A09","house":"E11-60","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":108.12},{"cable":"cable_E11-8_FOB041S02A09","house":"E11-8","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":87.99},{"cable":"cable_E11-9_FOB041S02A09","house":"E11-9","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":81.49},{"cable":"cable_E12-10_FOB041S02A09","house":"E12-10","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":73.74},{"cable":"cable_E12-11_FOB041S02A09","house":"E12-11","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":65.55},{"cable":"cable_E12-12_FOB041S02A09","house":"E12-12","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":56.68},{"cable":"cable_E12-1_FOB041S02A09","house":"E12-1","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":48.69},{"cable":"cable_E12-2_FOB041S02A09","house":"E12-2","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":46.52},{"cable":"cable_E12-3_FOB041S02A09","house":"E12-3","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":55.55},{"cable":"cable_E12-4_FOB041S02A09","house":"E12-4","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":64.28},{"cable":"cable_E12-5_FOB041S02A09","house":"E12-5","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":73.07},{"cable":"cable_E12-6_FOB041S02A09","house":"E12-6","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":81.88},{"cable":"cable_E12-7_FOB041S02A09","house":"E12-7","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":90.85},{"cable":"cable_E12-8_FOB041S02A09","house":"E12-8","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":91.95},{"cable":"cable_E12-9_FOB041S02A09","house":"E12-9","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":83.42},{"cable":"cable_E2-10_FOB041S02A09","house":"E2-10","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":30.39},{"cable":"cable_E2-11_FOB041S02A09","house":"E2-11","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":23.55},{"cable":"cable_E2-7_FOB041S02A09","house":"E2-7","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":15.71},{"cable":"cable_E2-8_FOB041S02A09","house":"E2-8","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":19.82},{"cable":"cable_E2-9_FOB041S02A09","house":"E2-9","fat":"FOB041S02A09","street":"JL. KEMUNING 2","len":27.87},{"cable":"cable_?-4_FOB041S02A08","house":"?-4","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":59.28},{"cable":"cable_E2-12_FOB041S02A08","house":"E2-12","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":14.33},{"cable":"cable_E2-13_FOB041S02A08","house":"E2-13","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":16.35},{"cable":"cable_E2-14_FOB041S02A08","house":"E2-14","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":22.46},{"cable":"cable_E2-15_FOB041S02A08","house":"E2-15","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":31.07},{"cable":"cable_E2-16_FOB041S02A08","house":"E2-16","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":40.12},{"cable":"cable_E3-10_FOB041S02A08","house":"E3-10","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":34.45},{"cable":"cable_E3-11_FOB041S02A08","house":"E3-11","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":28.65},{"cable":"cable_E3-12_FOB041S02A08","house":"E3-12","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":26.4},{"cable":"cable_E3-13_FOB041S02A08","house":"E3-13","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":27.55},{"cable":"cable_E3-14_FOB041S02A08","house":"E3-14","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":31.64},{"cable":"cable_E3-15_FOB041S02A08","house":"E3-15","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":37.59},{"cable":"cable_E3-16_FOB041S02A08","house":"E3-16","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":45.07},{"cable":"cable_E3-17_FOB041S02A08","house":"E3-17","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":53.7},{"cable":"cable_E3-18_FOB041S02A08","house":"E3-18","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":65.82},{"cable":"cable_E3-1_FOB041S02A08","house":"E3-1","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":60.61},{"cable":"cable_E3-2_FOB041S02A08","house":"E3-2","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":50.39},{"cable":"cable_E3-3_FOB041S02A08","house":"E3-3","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":42.07},{"cable":"cable_E3-4_FOB041S02A08","house":"E3-4","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":33.98},{"cable":"cable_E3-5_FOB041S02A08","house":"E3-5","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":26.94},{"cable":"cable_E3-6_FOB041S02A08","house":"E3-6","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":22.11},{"cable":"cable_E3-7_FOB041S02A08","house":"E3-7","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":21.15},{"cable":"cable_E3-8_FOB041S02A08","house":"E3-8","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":24.15},{"cable":"cable_E3-9_FOB041S02A08","house":"E3-9","fat":"FOB041S02A08","street":"JL. KEMUNING 5","len":31.23}];
+const COLS = [
+  {k:'no',l:'No',num:true},{k:'cable',l:'Cable drop'},{k:'house',l:'Nomor rumah'},
+  {k:'fat',l:'FAT'},{k:'street',l:'Jalan'},{k:'len',l:'Panjang (m)',num:true}
+];
+let rows = INITIAL.map((r,i)=>({...r,no:i+1}));
+let sort = {k:'no',dir:1}, fileName='ABD-RB32DPK1128_001.kmz';
+const $ = id => document.getElementById(id);
+const fmt = (n,d=2) => n.toLocaleString('id-ID',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const natural = new Intl.Collator('id',{numeric:true,sensitivity:'base'});
+
+/* ---------- geodesic length (Vincenty, WGS84) ---------- */
+function dist(p1,p2){
+  const a=6378137, f=1/298.257223563, b=a*(1-f), rad=Math.PI/180;
+  if(p1[0]===p2[0]&&p1[1]===p2[1]) return 0;
+  const U1=Math.atan((1-f)*Math.tan(p1[1]*rad)), U2=Math.atan((1-f)*Math.tan(p2[1]*rad));
+  const L=(p2[0]-p1[0])*rad; let lam=L, sS,cS,s,c2a,c2sm;
+  for(let i=0;i<200;i++){
+    sS=Math.hypot(Math.cos(U2)*Math.sin(lam),Math.cos(U1)*Math.sin(U2)-Math.sin(U1)*Math.cos(U2)*Math.cos(lam));
+    cS=Math.sin(U1)*Math.sin(U2)+Math.cos(U1)*Math.cos(U2)*Math.cos(lam);
+    s=Math.atan2(sS,cS);
+    const sa=Math.cos(U1)*Math.cos(U2)*Math.sin(lam)/sS; c2a=1-sa*sa;
+    c2sm=c2a?cS-2*Math.sin(U1)*Math.sin(U2)/c2a:0;
+    const C=f/16*c2a*(4+f*(4-3*c2a)), lp=lam;
+    lam=L+(1-C)*f*sa*(s+C*sS*(c2sm+C*cS*(-1+2*c2sm*c2sm)));
+    if(Math.abs(lam-lp)<1e-12) break;
+  }
+  const u2=c2a*(a*a-b*b)/(b*b);
+  const A=1+u2/16384*(4096+u2*(-768+u2*(320-175*u2)));
+  const B=u2/1024*(256+u2*(-128+u2*(74-47*u2)));
+  const ds=B*sS*(c2sm+B/4*(cS*(-1+2*c2sm*c2sm)-B/6*c2sm*(-3+4*sS*sS)*(-3+4*c2sm*c2sm)));
+  return b*A*(s-ds);
+}
+const flat=(p,q)=>Math.hypot((p[0]-q[0])*110500,(p[1]-q[1])*111320);
+
+/* ---------- KML parsing ---------- */
+const kids=(el,t)=>Array.from(el.children).filter(c=>c.localName===t);
+const nameOf=el=>{const n=kids(el,'name')[0];return n?n.textContent.trim():''};
+function coords(pm){
+  const c=pm.getElementsByTagNameNS('*','coordinates')[0]; if(!c) return [];
+  return c.textContent.trim().split(/\s+/).map(s=>s.split(',').slice(0,2).map(Number)).filter(p=>p.length===2&&!p.some(isNaN));
+}
+function attrs(pm){const o={};for(const s of pm.getElementsByTagNameNS('*','SimpleData'))o[s.getAttribute('name')]=s.textContent.trim();return o}
+function parseKml(text){
+  const doc=new DOMParser().parseFromString(text,'application/xml');
+  if(doc.getElementsByTagNameNS('*','parsererror').length) throw new Error('Isi KML tidak bisa dibaca.');
+  const folders=Array.from(doc.getElementsByTagNameNS('*','Folder'));
+  const byName=re=>folders.filter(f=>re.test(nameOf(f)));
+  const drop=byName(/^cable[\s_-]*drop$/i)[0];
+  if(!drop) throw new Error('Folder "CABLE DROP" tidak ditemukan. Folder yang ada: '+folders.map(nameOf).join(', '));
+  const homes=[];
+  for(const f of byName(/^home(-biz)?$/i)) for(const pm of f.getElementsByTagNameNS('*','Placemark')){
+    const c=coords(pm)[0]; if(!c) continue; const a=attrs(pm);
+    homes.push({name:nameOf(pm),pt:c,street:((a.PREFIX_ADDRESS||'')+' '+(a.STREET_NAME||'')).trim(),fat:a.FAT_CODE||''});
+  }
+  const fats=[];
+  for(const f of byName(/^fat$/i)) for(const pm of f.getElementsByTagNameNS('*','Placemark')){
+    const c=coords(pm)[0]; if(c) fats.push({name:nameOf(pm),pt:c});
+  }
+  const out=[];
+  for(const pm of drop.getElementsByTagNameNS('*','Placemark')){
+    const pts=coords(pm); if(pts.length<2) continue;
+    const cable=nameOf(pm); const m=cable.match(/^cable_(.+)_(FOB\w+)$/i);
+    let house=m?m[1]:'', fat=m?m[2]:'';
+    const ends=[pts[0],pts[pts.length-1]];
+    const near=(list)=>{let best=null,bd=1e9;for(const x of list)for(const e of ends){const d=flat(x.pt,e);if(d<bd){bd=d;best=x}}return {best,bd}};
+    let cand=house?homes.filter(h=>h.name===house):[];
+    let home=null;
+    if(cand.length){home=near(cand).best}
+    else{const n=near(homes); if(n.best&&n.bd<15){home=n.best;house=house||home.name}}
+    if(!fat){const n=near(fats); if(n.best&&n.bd<15) fat=n.best.name; else if(home) fat=home.fat}
+    let len=0; for(let i=0;i<pts.length-1;i++) len+=dist(pts[i],pts[i+1]);
+    out.push({cable,house:house||'-',fat:fat||'-',street:home?home.street:'-',len:Math.round(len*100)/100});
+  }
+  if(!out.length) throw new Error('Folder CABLE DROP kosong.');
+  return out.map((r,i)=>({...r,no:i+1}));
+}
+async function readFile(file){
+  const buf=await file.arrayBuffer();
+  if(/\.kml$/i.test(file.name)) return new TextDecoder().decode(buf);
+  if(!window.JSZip) throw new Error('Pustaka pembaca KMZ gagal dimuat. Muat ulang halaman.');
+  const zip=await JSZip.loadAsync(buf);
+  const entry=zip.file('doc.kml')||zip.file(/\.kml$/i)[0];
+  if(!entry) throw new Error('Tidak ada file .kml di dalam KMZ.');
+  return entry.async('string');
+}
+async function load(file){
+  const st=$('status'); st.className=''; st.textContent='Membaca '+file.name+'...';
+  try{
+    rows=parseKml(await readFile(file)); fileName=file.name;
+    $('src').textContent='File: '+file.name; $('fatSel').value=''; $('q').value='';
+    st.className='ok'; st.textContent='Berhasil: '+rows.length+' cable drop dibaca dari '+file.name+'.';
+    renderAll();
+  }catch(e){st.className='err'; st.textContent=e.message||String(e)}
+}
+
+/* ---------- render ---------- */
+function filtered(){
+  const q=$('q').value.trim().toLowerCase(), fat=$('fatSel').value;
+  let r=rows.filter(x=>(!fat||x.fat===fat)&&(!q||[x.cable,x.house,x.fat,x.street].some(s=>s.toLowerCase().includes(q))));
+  const {k,dir}=sort;
+  r=[...r].sort((a,b)=>(typeof a[k]==='number'?a[k]-b[k]:natural.compare(String(a[k]),String(b[k])))*dir||a.no-b.no);
+  return r;
+}
+function renderFats(){
+  const keys=[...new Set(rows.map(r=>r.fat))].sort(natural.compare), sel=$('fatSel'), cur=sel.value;
+  sel.innerHTML='<option value="">Semua FAT</option>'+keys.map(k=>`<option>${esc(k)}</option>`).join(''); sel.value=keys.includes(cur)?cur:'';
+}
+function renderTable(){
+  $('thead').innerHTML=COLS.map(c=>{const on=sort.k===c.k;
+    return `<th data-k="${c.k}" class="${c.num?'num':''}" tabindex="0" ${on?`aria-sort="${sort.dir>0?'ascending':'descending'}"`:''}>${c.l}${on?`<span class="ar"> ${sort.dir>0?'▲':'▼'}</span>`:''}</th>`}).join('');
+  const r=filtered();
+  $('tbody').innerHTML=r.map(x=>{return `<tr><td class="num">${x.no}</td><td class="mono">${esc(x.cable)}</td><td class="mono">${esc(x.house)}</td>
+    <td class="mono">${esc(x.fat)}</td><td>${esc(x.street)}</td><td class="num">${fmt(x.len)}</td></tr>`}).join('');
+  const sum=r.reduce((a,b)=>a+b.len,0);
+  $('cnt').textContent=r.length+' dari '+rows.length+' kabel, total '+fmt(sum)+' m';
+}
+function renderAll(){renderFats();renderTable()}
+
+/* ---------- events ---------- */
+$('thead').addEventListener('click',e=>{const th=e.target.closest('th'); if(!th)return;
+  const k=th.dataset.k; sort=sort.k===k?{k,dir:-sort.dir}:{k,dir:1}; renderTable()});
+$('thead').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.target.click()}});
+['q','fatSel'].forEach(id=>$(id).addEventListener('input',renderTable));
+$('file').addEventListener('change',e=>{if(e.target.files[0]) load(e.target.files[0]); e.target.value=''});
+$('pick').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file').click()}});
+const drop=$('drop');
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0]; if(f) load(f)});
+window.addEventListener('dragover',e=>e.preventDefault()); window.addEventListener('drop',e=>e.preventDefault());
+
+function toCsv(list){
+  const q=v=>/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
+  return '﻿'+['no,nama_cable_drop,nomor_rumah,fat,jalan,panjang_kabel_m']
+    .concat(list.map((r,i)=>[i+1,q(r.cable),q(r.house),q(r.fat),q(r.street),r.len.toFixed(2)].join(','))).join('\r\n');
+}
+let dl=null; (async()=>{try{dl=await claude.use('downloads')}catch(e){dl=null}})();
+$('csvBtn').addEventListener('click',async()=>{
+  const csv=toCsv(filtered()), note=$('csvNote'); note.textContent='';
+  const base=fileName.replace(/\.(kmz|kml)$/i,'')+'_cable_drop.csv';
+  try{
+    if(!dl) throw {code:'unavailable'};
+    await dl.save({filename:base,data:csv}); note.textContent='CSV disimpan: '+base;
+  }catch(e){
+    if(e&&e.code==='declined'){note.textContent='Penyimpanan dibatalkan.';return}
+    try{await navigator.clipboard.writeText(csv); note.textContent='Unduhan tidak tersedia di tampilan ini. Isi CSV sudah disalin ke clipboard, tempel ke Excel atau file .csv.'}
+    catch(_){note.textContent='Unduhan dan salin tidak tersedia di tampilan ini. Buka halaman ini di claude.ai.'}
+  }
+});
+renderAll();
+</script>
+
+</body></html>
