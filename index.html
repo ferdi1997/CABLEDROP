@@ -5,16 +5,28 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Panjang Cable Drop</title>
 
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Tema terminal hacker: hitam, hijau neon, huruf monospace. */
+/* Layout: lembar survei jaringan. Strip upload di atas, ringkasan angka, dua grafik (per FAT, sebaran panjang), lalu tabel kabel yang bisa dicari. */
 :root{
-  --bg:#030803; --surface:#07110a; --surface2:#0b1a10; --ink:#b7f5c4; --muted:#5f9a70;
-  --line:#14532d; --accent:#39ff14; --accent-soft:#0d2a12; --ok:#39ff14; --err:#ff4d4d;
-  --font-display:'Share Tech Mono','IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
-  --font-body:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --bg:#eef1f3; --surface:#ffffff; --surface2:#f5f7f8; --ink:#14232b; --muted:#5b6b74;
+  --line:#d5dde1; --accent:#c2410c; --accent-soft:#fbe3d6; --teal:#0f6b6f; --teal-soft:#d3ebeb;
+  --warn:#a16207; --warn-soft:#fdf0c9; --ok:#17693a;
+  --font-display:'IBM Plex Sans Condensed','Arial Narrow',Arial,sans-serif;
+  --font-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
   --font-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
-  color-scheme:dark;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f181d; --surface:#17232a; --surface2:#1d2c34; --ink:#e6edf0; --muted:#97a8b1;
+    --line:#2b3c45; --accent:#f08a4b; --accent-soft:#3a2418; --teal:#4fc1c5; --teal-soft:#16373a;
+    --warn:#e7b94a; --warn-soft:#3a3016; --ok:#5fcf8a; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f181d; --surface:#17232a; --surface2:#1d2c34; --ink:#e6edf0; --muted:#97a8b1;
+  --line:#2b3c45; --accent:#f08a4b; --accent-soft:#3a2418; --teal:#4fc1c5; --teal-soft:#16373a;
+  --warn:#e7b94a; --warn-soft:#3a3016; --ok:#5fcf8a; color-scheme:dark;
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.5;
@@ -50,7 +62,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .field label{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 input[type=search],input[type=number],select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);
   border-radius:5px;padding:7px 9px;min-width:0}
-input[type=search]{width:250px;max-width:100%} input[type=number]{width:90px}
+input[type=search]{width:220px;max-width:100%} input[type=number]{width:90px}
 .spacer{flex:1 1 auto}
 .tablebox{overflow:auto;max-height:560px;border:1px solid var(--line);border-radius:5px}
 table{border-collapse:collapse;width:100%;min-width:640px}
@@ -61,51 +73,14 @@ th .ar{color:var(--accent)}
 td.num,th.num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 td.mono{font-family:var(--font-mono);font-size:12.5px}
 .count{color:var(--muted);font-size:12.5px}
-
-/* ---------- tema hacker ---------- */
-#rain{position:fixed;inset:0;width:100%;height:100%;opacity:.22;pointer-events:none;z-index:0}
-body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:2;
-  background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.18) 3px)}
-.wrap{position:relative;z-index:1}
-body{text-shadow:0 0 6px rgba(57,255,20,.18)}
-h1{color:var(--accent);text-shadow:0 0 10px rgba(57,255,20,.55);letter-spacing:.02em;font-weight:400;font-size:28px}
-h1 .pr{color:var(--muted);margin-right:6px}
-.cur{display:inline-block;width:.6em;height:1em;background:var(--accent);margin-left:6px;vertical-align:-.12em;animation:blink 1.1s steps(1) infinite}
-@keyframes blink{50%{opacity:0}}
-.sub::before{content:"root@cabledrop:~$ ";color:var(--accent)}
-.drop{border:1.5px dashed var(--line);background:var(--surface);box-shadow:0 0 14px rgba(57,255,20,.08) inset}
-.drop.over{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 18px rgba(57,255,20,.35)}
-.drop strong{color:var(--accent);font-weight:400;letter-spacing:.03em}
-button,.btn{background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:2px;letter-spacing:.04em;text-transform:uppercase;font-size:12.5px;transition:background .12s,color .12s,box-shadow .12s}
-button:hover:not(:disabled),.btn:hover{background:var(--accent);color:var(--bg);box-shadow:0 0 12px rgba(57,255,20,.6);border-color:var(--accent);text-shadow:none}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-#status.ok::before{content:"[OK] "} #status.err::before{content:"[ERR] "}
-#status.err{color:var(--err)}
-.field label{color:var(--accent)}
-input[type=search],select{background:var(--bg);border:1px solid var(--line);border-radius:2px;color:var(--accent);caret-color:var(--accent)}
-input[type=search]::placeholder{color:var(--muted)}
-input[type=search]:focus,select:focus{border-color:var(--accent);box-shadow:0 0 8px rgba(57,255,20,.4);outline:none}
-select option{background:var(--surface);color:var(--ink)}
-.tablebox{border:1px solid var(--line);border-radius:2px;background:rgba(3,8,3,.88)}
-th{background:var(--surface2);color:var(--accent);border-bottom:1px solid var(--accent)}
-th[aria-sort]{color:#eaffe0;text-shadow:0 0 8px rgba(57,255,20,.7)}
-th .ar{color:var(--accent)}
-td{border-bottom:1px solid rgba(20,83,45,.55);font-family:var(--font-mono);font-size:12.5px}
-td.num{color:var(--accent)}
-tbody tr:hover td{background:var(--accent-soft);color:#eaffe0}
-.count{color:var(--muted)} .count::before{content:"# "}
-.note{color:var(--muted)}
-.tablebox::-webkit-scrollbar{width:10px;height:10px} .tablebox::-webkit-scrollbar-thumb{background:var(--line)} .tablebox::-webkit-scrollbar-track{background:var(--bg)}
-@media (prefers-reduced-motion:reduce){.cur{animation:none}}
 </style>
 </head>
 <body>
 
-<canvas id="rain" aria-hidden="true"></canvas>
 <div class="wrap">
   <header>
     <div>
-      <h1><span class="pr">&gt;_</span>Panjang Cable Drop<span class="cur" aria-hidden="true"></span></h1>
+      <h1>Panjang Cable Drop</h1>
       <p class="sub" id="src">File: ABD-RB32DPK1128_001.kmz</p>
     </div>
     
@@ -287,24 +262,5 @@ $('csvBtn').addEventListener('click',()=>{
 renderAll();
 </script>
 
-<script>
-(function(){
-  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  var c=document.getElementById('rain'), x=c.getContext('2d'), fs=15, cols, drops;
-  var ch='ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄ0123456789ABCDEF<>/{}[]=+*#$%'.split('');
-  function size(){c.width=innerWidth;c.height=innerHeight;cols=Math.ceil(c.width/fs);drops=Array.from({length:cols},function(){return Math.random()*-50});}
-  size(); addEventListener('resize',size);
-  setInterval(function(){
-    if(document.hidden) return;
-    x.fillStyle='rgba(3,8,3,0.12)'; x.fillRect(0,0,c.width,c.height);
-    x.fillStyle='#39ff14'; x.font=fs+'px monospace';
-    for(var i=0;i<cols;i++){
-      x.fillText(ch[Math.floor(Math.random()*ch.length)],i*fs,drops[i]*fs);
-      if(drops[i]*fs>c.height&&Math.random()>.975) drops[i]=0;
-      drops[i]+=1;
-    }
-  },60);
-})();
-</script>
 </body>
 </html>
