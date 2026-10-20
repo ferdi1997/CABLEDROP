@@ -281,10 +281,12 @@ $('kmzBtn').addEventListener('click',async()=>{
 /* ---------- export CSV (satu baris per homepass-kabel, mengikuti filter) ---------- */
 function toCsv(list){
   const q=v=>{v=String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  const head='no,nomor_homepass,jalan,fat_homepass,nama_cable_drop,fat_kabel,panjang_kabel_m,latitude,longitude';
+  const head='no,nomor_homepass,blok,jalan,fat_homepass,nama_cable_drop,fat_kabel,panjang_kabel_m,latitude,longitude';
   const out=[]; let n=0;
+  const blokOf=nm=>{const i=nm.indexOf('-');const b=i>0?nm.slice(0,i).trim():'';return b==='?'?'':b};
+  const jalanOf=s=>s.replace(/^\s*JL\.?\s*/i,'').trim()||'-';
   for(const h of list){
-    const base=[q(h.name),q(h.street),q(h.fat||'-')];
+    const base=[q(h.name),q(blokOf(h.name)),q(jalanOf(h.street)),q(h.fat||'-')];
     const pos=[h.pt[1].toFixed(6),h.pt[0].toFixed(6)];
     if(!h.cables.length){out.push([++n,...base,'','','',...pos].join(','));continue}
     for(const c of h.cables) out.push([++n,...base,q(c.cable),q(c.fat),c.len.toFixed(2),...pos].join(','));
