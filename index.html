@@ -57,6 +57,13 @@ input[type=search],select{font:inherit;color:var(--ink);background:var(--surface
 .pop td:first-child{color:#5b6b74}
 .pop .len{font-family:var(--font-mono);font-weight:600;color:#c2410c;font-size:15px}
 .pop .warn{color:#c2410c}
+#scare{position:fixed;inset:0;z-index:99999;background:#000;display:none;align-items:center;justify-content:center;cursor:pointer}
+#scare.on{display:flex;animation:sc-flash .35s steps(2) 1}
+#scare svg{width:min(90vw,90vh);height:auto;animation:sc-zoom .25s ease-out forwards,sc-shake .08s linear .25s infinite}
+@keyframes sc-zoom{from{transform:scale(.2)}to{transform:scale(1.15)}}
+@keyframes sc-shake{0%{transform:translate(0,0) scale(1.15)}25%{transform:translate(-14px,8px) scale(1.15)}50%{transform:translate(12px,-10px) scale(1.15)}75%{transform:translate(-8px,-6px) scale(1.15)}100%{transform:translate(10px,10px) scale(1.15)}}
+@keyframes sc-flash{0%{background:#b00}100%{background:#000}}
+@media (prefers-reduced-motion:reduce){#scare.on,#scare svg{animation:none}}
 </style>
 </head>
 <body>
@@ -89,6 +96,19 @@ input[type=search],select{font:inherit;color:var(--ink);background:var(--surface
     </aside>
     <div id="map"></div>
   </section>
+</div>
+
+<div id="scare" aria-hidden="true">
+  <svg viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="100" cy="115" rx="78" ry="100" fill="#e6e6d8"/>
+    <ellipse cx="68" cy="95" rx="24" ry="32" fill="#000"/>
+    <ellipse cx="132" cy="95" rx="24" ry="32" fill="#000"/>
+    <circle cx="68" cy="100" r="5" fill="#e11"/>
+    <circle cx="132" cy="100" r="5" fill="#e11"/>
+    <path d="M92 135 L100 118 L108 135 Z" fill="#222"/>
+    <path d="M45 160 Q100 235 155 160 Q100 185 45 160 Z" fill="#000"/>
+    <path d="M58 166 L66 180 L74 170 L84 186 L92 174 L100 188 L108 174 L116 186 L126 170 L134 180 L142 166" fill="none" stroke="#e6e6d8" stroke-width="5" stroke-linejoin="miter"/>
+  </svg>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -324,7 +344,32 @@ function toCsv(list){
   }
   return '\ufeff'+[head].concat(out).join('\r\n');
 }
+/* ---------- jumpscare (tampil ~1,8 detik, klik layar untuk menutup) ---------- */
+function jumpscare(){
+  const el=$('scare'); el.classList.add('on');
+  try{
+    const Ctx=window.AudioContext||window.webkitAudioContext, ac=new Ctx(), t=ac.currentTime;
+    const g=ac.createGain();
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(0.6,t+0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+1.6);
+    g.connect(ac.destination);
+    [220,233,330].forEach((f,i)=>{
+      const o=ac.createOscillator(); o.type='sawtooth';
+      o.frequency.setValueAtTime(f,t); o.frequency.exponentialRampToValueAtTime(f*3.2,t+1.2);
+      o.detune.value=i*17; o.connect(g); o.start(t); o.stop(t+1.6);
+    });
+    const buf=ac.createBuffer(1,Math.floor(ac.sampleRate*1.2),ac.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    const n=ac.createBufferSource(); n.buffer=buf;
+    const ng=ac.createGain(); ng.gain.value=0.35; n.connect(ng); ng.connect(g); n.start(t);
+    setTimeout(()=>ac.close(),2000);
+  }catch(e){}
+  const off=()=>el.classList.remove('on');
+  el.onclick=off; setTimeout(off,1800);
+}
 $('csvBtn').addEventListener('click',()=>{
+  jumpscare();
   const csv=toCsv(filtered());
   const name=fileName.replace(/\.(kmz|kml)$/i,'')+'_homepass.csv';
   const a=document.createElement('a');
