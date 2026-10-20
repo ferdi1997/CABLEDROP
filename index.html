@@ -311,7 +311,7 @@ $('kmzBtn').addEventListener('click',async()=>{
 const CABLE_EXTRA_M = 30;
 function toCsv(list){
   const q=v=>{v=String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  const head='no,nomor_homepass,blok,jalan,fat_homepass,gabungan,panjang_kabel_m,latitude,longitude';
+  const head='No,ST NO,BLOK,ST NAME,FAT,GABUNGAN,PANJANG KABEL,LATITUDE,LONGITUDE';
   const out=[]; let n=0;
   const jalanOf=s=>s.replace(/^\s*JL\.?\s*/i,'').trim()||'-';
   for(const h of list){
