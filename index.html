@@ -316,7 +316,7 @@ function toCsv(list){
   const jalanOf=s=>s.replace(/^\s*JL\.?\s*/i,'').trim()||'-';
   for(const h of list){
     const nomor=h.name, blok=h.block||'', jalan=jalanOf(h.street), fat=h.fat||'-';
-    const gabungan=[nomor,blok,jalan,fat].filter(v=>v&&v!=='-').join(' ');
+    const gabungan=[nomor,blok,jalan,fat].filter((v,i)=>v&&(i===1||v!=='-')).join(' ');
     const base=[q(nomor),q(blok),q(jalan),q(fat),q(gabungan)];
     const pos=[h.pt[1].toFixed(6),h.pt[0].toFixed(6)];
     if(!h.cables.length){out.push([++n,...base,'',...pos].join(','));continue}
