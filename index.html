@@ -305,17 +305,22 @@ $('kmzBtn').addEventListener('click',async()=>{
   $('status').className='ok'; $('status').textContent='KMZ diunduh: '+name;
 });
 
-/* ---------- export CSV (satu baris per homepass-kabel, mengikuti filter) ---------- */
+/* ---------- export CSV (satu baris per homepass-kabel, mengikuti filter) ----------
+   Kolom: A no | B nomor_homepass | C blok | D jalan | E fat_homepass |
+          F gabungan (B C D E) | G panjang_kabel_m (panjang di KMZ + 30 m) | H latitude | I longitude */
+const CABLE_EXTRA_M = 30;
 function toCsv(list){
   const q=v=>{v=String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  const head='no,nomor_homepass,blok,jalan,fat_homepass,nama_cable_drop,fat_kabel,panjang_kabel_m,latitude,longitude';
+  const head='no,nomor_homepass,blok,jalan,fat_homepass,gabungan,panjang_kabel_m,latitude,longitude';
   const out=[]; let n=0;
   const jalanOf=s=>s.replace(/^\s*JL\.?\s*/i,'').trim()||'-';
   for(const h of list){
-    const base=[q(h.name),q(h.block||''),q(jalanOf(h.street)),q(h.fat||'-')];
+    const nomor=h.name, blok=h.block||'', jalan=jalanOf(h.street), fat=h.fat||'-';
+    const gabungan=[nomor,blok,jalan,fat].filter(v=>v&&v!=='-').join(' ');
+    const base=[q(nomor),q(blok),q(jalan),q(fat),q(gabungan)];
     const pos=[h.pt[1].toFixed(6),h.pt[0].toFixed(6)];
-    if(!h.cables.length){out.push([++n,...base,'','','',...pos].join(','));continue}
-    for(const c of h.cables) out.push([++n,...base,q(c.cable),q(c.fat),c.len.toFixed(2),...pos].join(','));
+    if(!h.cables.length){out.push([++n,...base,'',...pos].join(','));continue}
+    for(const c of h.cables) out.push([++n,...base,(c.len+CABLE_EXTRA_M).toFixed(2),...pos].join(','));
   }
   return '\ufeff'+[head].concat(out).join('\r\n');
 }
