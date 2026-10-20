@@ -132,7 +132,13 @@ function coords(pm){
   const c=pm.getElementsByTagNameNS('*','coordinates')[0]; if(!c) return [];
   return c.textContent.trim().split(/\s+/).map(s=>s.split(',').slice(0,2).map(Number)).filter(p=>p.length===2&&!p.some(isNaN));
 }
-function attrs(pm){const o={};for(const s of pm.getElementsByTagNameNS('*','SimpleData'))o[s.getAttribute('name')]=s.textContent.trim();return o}
+function attrs(pm){
+  const o={};
+  for(const s of pm.getElementsByTagNameNS('*','SimpleData'))o[s.getAttribute('name')]=s.textContent.trim();
+  for(const d of pm.getElementsByTagNameNS('*','Data')){const v=d.getElementsByTagNameNS('*','value')[0];o[d.getAttribute('name')]=v?v.textContent.trim():''}
+  return o;
+}
+const blockOf=a=>{for(const k of Object.keys(a)) if(/bl(o)?c?k/i.test(k)&&a[k]) return a[k]; return ''};
 
 function parseKml(text){
   const doc=new DOMParser().parseFromString(text,'application/xml');
@@ -142,12 +148,28 @@ function parseKml(text){
   const drop=byName(/^cable[\s_-]*drop$/i)[0];
   if(!drop) throw new Error('Folder "CABLE DROP" tidak ditemukan. Folder yang ada: '+folders.map(nameOf).join(', '));
 
+  // Folder "HP": sumber nama BLOCK tiap homepass
+  const HP=[]; let hpKeys=[];
+  for(const f of byName(/^hp$/i)) for(const pm of f.getElementsByTagNameNS('*','Placemark')){
+    const c=coords(pm)[0]; if(!c) continue; const a=attrs(pm);
+    if(!hpKeys.length) hpKeys=Object.keys(a);
+    HP.push({name:nameOf(pm),pt:c,a,block:blockOf(a)});
+  }
+  const streetOf=a=>((a.PREFIX_ADDRESS||'')+' '+(a.STREET_NAME||'')).trim()||'-';
   const H=[];
   for(const f of byName(/^home(-biz)?$/i)) for(const pm of f.getElementsByTagNameNS('*','Placemark')){
     const c=coords(pm)[0]; if(!c) continue; const a=attrs(pm);
-    H.push({name:nameOf(pm),pt:c,street:((a.PREFIX_ADDRESS||'')+' '+(a.STREET_NAME||'')).trim()||'-',fat:a.FAT_CODE||'',cables:[]});
+    H.push({name:nameOf(pm),pt:c,street:streetOf(a),fat:a.FAT_CODE||'',block:blockOf(a),cables:[]});
   }
-  if(!H.length) throw new Error('Folder HOME (homepass) tidak ditemukan atau kosong.');
+  if(!H.length) for(const p of HP) H.push({name:p.name,pt:p.pt,street:streetOf(p.a),fat:p.a.FAT_CODE||'',block:p.block,cables:[]});
+  else for(const h of H){
+    if(h.block) continue;
+    let best=null,bd=1e9;
+    for(const p of HP){ if(!p.block) continue; const d=flat(p.pt,h.pt), same=p.name===h.name;
+      if((d<=8||(same&&d<40))&&d<bd){bd=d;best=p} }
+    if(best) h.block=best.block;
+  }
+  if(!H.length) throw new Error('Folder HP / HOME (homepass) tidak ditemukan atau kosong.');
   const fats=[];
   for(const f of byName(/^fat$/i)) for(const pm of f.getElementsByTagNameNS('*','Placemark')){
     const c=coords(pm)[0]; if(c) fats.push({name:nameOf(pm),pt:c});
@@ -174,7 +196,7 @@ function parseKml(text){
     if(home) home.cables.push(rec);
   }
   if(!C.length) throw new Error('Folder CABLE DROP kosong.');
-  return {homes:H,cables:C};
+  return {homes:H,cables:C,hpCount:HP.length,hpKeys};
 }
 async function readFile(file){
   const buf=await file.arrayBuffer();
@@ -198,12 +220,12 @@ function popupHtml(h){
       <tr><td>Panjang</td><td class="len">${fmt(c.len)} m</td></tr></table>`).join('<hr>');
   }
   return `<div class="pop"><h3>Homepass ${esc(h.name)}</h3>
-    <table><tr><td>Jalan</td><td>${esc(h.street)}</td></tr>
+    <table><tr><td>Blok</td><td>${esc(h.block||'-')}</td></tr><tr><td>Jalan</td><td>${esc(h.street)}</td></tr>
     <tr><td>FAT homepass</td><td>${esc(h.fat||'-')}</td></tr></table>${body}</div>`;
 }
 function popupPlain(h){ // untuk balon Google Earth
   const rows=h.cables.length?h.cables.map(c=>`<tr><td>Cable drop</td><td>${esc(c.cable)}</td></tr><tr><td>FAT</td><td>${esc(c.fat)}</td></tr><tr><td><b>Panjang</b></td><td><b>${fmt(c.len)} m</b></td></tr>`).join(''):'<tr><td colspan="2">Belum ada cable drop</td></tr>';
-  return `<table><tr><td>Jalan</td><td>${esc(h.street)}</td></tr><tr><td>FAT homepass</td><td>${esc(h.fat||'-')}</td></tr>${rows}</table>`;
+  return `<table><tr><td>Blok</td><td>${esc(h.block||'-')}</td></tr><tr><td>Jalan</td><td>${esc(h.street)}</td></tr><tr><td>FAT homepass</td><td>${esc(h.fat||'-')}</td></tr>${rows}</table>`;
 }
 
 /* ---------- map & list ---------- */
@@ -258,7 +280,12 @@ async function load(file){
     homes=r.homes; cables=r.cables; fileName=file.name;
     $('src').textContent='File: '+file.name; $('fatSel').value=''; $('q').value='';
     const withCable=homes.filter(h=>h.cables.length).length;
-    st.className='ok'; st.textContent='Berhasil: '+homes.length+' homepass, '+withCable+' sudah punya cable drop ('+cables.length+' kabel). Klik titik untuk melihat pop up.';
+    const withBlock=homes.filter(h=>h.block).length;
+    st.className='ok'; st.textContent='Berhasil: '+homes.length+' homepass, '+withCable+' sudah punya cable drop ('+cables.length+' kabel), '+withBlock+' punya blok. Klik titik untuk melihat pop up.';
+    if(!withBlock){
+      st.className='err';
+      st.textContent+=' Blok kosong: '+(r.hpCount?('folder HP terbaca ('+r.hpCount+' titik) tapi tidak ada kolom BLOCK. Kolom yang ada: '+(r.hpKeys.join(', ')||'(tidak ada)')):'folder "HP" tidak ditemukan di file ini')+'.';
+    }
     $('kmzBtn').disabled=false; $('csvBtn').disabled=false; renderFats(); refresh();
   }catch(e){st.className='err'; st.textContent=e.message||String(e)}
 }
@@ -283,10 +310,9 @@ function toCsv(list){
   const q=v=>{v=String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
   const head='no,nomor_homepass,blok,jalan,fat_homepass,nama_cable_drop,fat_kabel,panjang_kabel_m,latitude,longitude';
   const out=[]; let n=0;
-  const blokOf=nm=>{const i=nm.indexOf('-');const b=i>0?nm.slice(0,i).trim():'';return b==='?'?'':b};
   const jalanOf=s=>s.replace(/^\s*JL\.?\s*/i,'').trim()||'-';
   for(const h of list){
-    const base=[q(h.name),q(blokOf(h.name)),q(jalanOf(h.street)),q(h.fat||'-')];
+    const base=[q(h.name),q(h.block||''),q(jalanOf(h.street)),q(h.fat||'-')];
     const pos=[h.pt[1].toFixed(6),h.pt[0].toFixed(6)];
     if(!h.cables.length){out.push([++n,...base,'','','',...pos].join(','));continue}
     for(const c of h.cables) out.push([++n,...base,q(c.cable),q(c.fat),c.len.toFixed(2),...pos].join(','));
